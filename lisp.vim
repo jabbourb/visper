@@ -1,20 +1,37 @@
 " Author: Bassam Jabbour
-" Date: February 20th, 2011
+" Date: February 22th, 2011
 " Description: A minimalistic Lisp plugin
 
-" The pipe the lisp process will be listening on
+" {{{1 Exported variables
+
+"" The pipe the lisp process will be listening on
 let g:lisp_input="/tmp/lisp-input"
-" The file the lisp process will write to, to be read in a Vim buffer
-" (not yet implemented)
+"" TODO: The file the lisp process will write to, to be read into a Vim buffer
 let g:lisp_output="/tmp/lisp-output"
-" The prefix to use for Lisp files mappings
+"" HyperSpec local path
+let g:lisp_hyper="/usr/share/doc/HyperSpec"
+"" Flag indicating whether autocompletion should use lower case
+"" Setting this to 0 will convert to upper case instead
+let g:lisp_complete_lower=1
+
+" {{{1 Mappings
+
+"" The prefix to use for Lisp files mappings
 let maplocalleader=','
 
-" Mappings
 nmap <buffer> <LocalLeader>x :silent call <SID>LispEvalWrap("LispEvalCurrent")<CR>
 nmap <buffer> <LocalLeader>t :silent call <SID>LispEvalWrap("LispEvalCurrent",1)<CR>
 nmap <buffer> <LocalLeader>b :silent call <SID>LispEvalWrap("LispEvalBuffer")<CR>
 nmap <buffer> <LocalLeader>p :silent call LispPrint("")<Left><Left>
+
+" {{{1 Internal variables
+
+"" Relative path of the symbol map file in the HyperSpec doc
+let s:hyper_map="Data/Map_Sym.txt"
+"" Regexp used to match the boundaries of a symbol from the CL package
+let s:reg_bounds='(\|\s\|`\|'''
+
+" {{{1 REPL interface
 
 " Check if the cursor is in a comment or string
 func! s:CommentOrString()
@@ -54,13 +71,13 @@ endfunc
 func! LispEvalCurrent(...)
     let flags = a:0 && a:1 ? 'rb' : 'b'
 
-    " Select text to be evaluated into @a
+    "" Select text to be evaluated into @a
     call searchpair('(','',')', flags, 's:CommentOrString()')
     call searchpair('(','',')', 's', 's:CommentOrString()')
-    "" y% doesn't work since it doesn't ignore comments/strings
+    """ y% doesn't work since it doesn't ignore comments/strings
     normal "ay`'
 
-    "" Append missing )
+    """ Append missing )
     call LispEval(@a.")")
 endfunc
 
@@ -74,3 +91,27 @@ endfunc
 func! LispPrint(var)
     call LispEval("(print ".a:var.")")
 endfunc
+
+" {{{1 Omnifunc
+
+setl omnifunc=LispComplete
+
+" Auto-completion using the HyperSpec thesaurus
+func! LispComplete(findstart, base)
+    if a:findstart
+        if !s:CommentOrString() && search(s:reg_bounds, 'b')
+            return col('.')
+        endif
+        return -1
+    else
+        let results = []
+        exe 'noau silent! lvimgrep /^'.a:base.'/j '.g:lisp_hyper.'/'.s:hyper_map
+        for line in getloclist(0)
+            let text = g:lisp_complete_lower ? tolower(line.text) : line.text
+            call add(results, text)
+        endfor
+        return results
+    endif
+endfunc
+
+" vim:fdm=marker
