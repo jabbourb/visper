@@ -105,11 +105,13 @@ func! LispComplete(findstart, base)
         return -1
     else
         let results = []
-        exe 'noau silent! lvimgrep /^'.a:base.'/j '.g:lisp_hyper.'/'.s:hyper_map
-        for line in getloclist(0)
-            let text = g:lisp_complete_lower ? tolower(line.text) : line.text
-            call add(results, text)
-        endfor
+        if strlen(a:base)
+            exe 'noau silent! lvimgrep /^'.a:base.'/j '.g:lisp_hyper.'/'.s:hyper_map
+            for line in getloclist(0)
+                let text = g:lisp_complete_lower ? tolower(line.text) : line.text
+                call add(results, text)
+            endfor
+        endif
         return results
     endif
 endfunc
